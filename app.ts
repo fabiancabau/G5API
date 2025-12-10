@@ -97,10 +97,43 @@ app.use(passport.session());
 app.use(bearerToken());
 
 // enabling CORS for all requests
+const normalizeOrigin = (value?: string | null): string | undefined => {
+  if (!value) return undefined;
+  try {
+    return new URL(value).origin;
+  } catch (err) {
+    return value;
+  }
+};
+
+const buildAllowedOrigins = (): string[] => {
+  const home = normalizeOrigin(config.get<string>("server.clientHome"));
+  const extraOrigins = config.has("server.allowedOrigins")
+    ? config.get<string[] | string>("server.allowedOrigins")
+    : [];
+  const normalizedExtras: string[] = Array.isArray(extraOrigins)
+    ? extraOrigins
+    : typeof extraOrigins === "string" && extraOrigins.length > 0
+      ? extraOrigins.split(",")
+      : [];
+
+  const mergedOrigins = [
+    home,
+    ...normalizedExtras.map((origin) => normalizeOrigin(origin.trim())),
+  ].filter((origin): origin is string => Boolean(origin && origin.length > 0));
+
+  return Array.from(new Set(mergedOrigins));
+};
+
+const allowedOrigins = buildAllowedOrigins();
+
 app.use(
   cors({
-    origin: config.get("server.clientHome"), // allow to server to accept request
-    // from different origin
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`CORS: ${origin} is not an allowed origin.`));
+    },
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true, // allow session cookie from browser to pass through
   })
