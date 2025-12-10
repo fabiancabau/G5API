@@ -107,6 +107,10 @@ const normalizeOrigin = (value?: string | null): string | undefined => {
 };
 
 const buildAllowedOrigins = (): string[] => {
+  const hardcodedOrigins = [
+    "https://get5.freezetime.gg",
+    "http://get5.freezetime.gg",
+  ];
   const home = normalizeOrigin(config.get<string>("server.clientHome"));
   const extraOrigins = config.has("server.allowedOrigins")
     ? config.get<string[] | string>("server.allowedOrigins")
@@ -118,6 +122,7 @@ const buildAllowedOrigins = (): string[] => {
       : [];
 
   const mergedOrigins = [
+    ...hardcodedOrigins,
     home,
     ...normalizedExtras.map((origin) => normalizeOrigin(origin.trim())),
   ].filter((origin): origin is string => Boolean(origin && origin.length > 0));
